@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,12 @@ def parse_args() -> argparse.Namespace:
         description="Install Codex-compatible skills from claude-code-video-toolkit."
     )
     parser.add_argument(
+        "--dest-root",
+        type=Path,
+        default=None,
+        help="Skill directory (default: $CODEX_HOME/skills or ~/.codex/skills).",
+    )
+    parser.add_argument(
         "--repo-root",
         type=Path,
         default=None,
@@ -52,6 +59,11 @@ def parse_args() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Print planned actions without writing files.",
+    )
+    parser.add_argument(
+        "--no-sync-agents",
+        action="store_true",
+        help="Install skills without appending the full CLAUDE.md to AGENTS.md.",
     )
     parser.add_argument(
         "--reset",
@@ -179,7 +191,10 @@ This skill is the Codex entrypoint equivalent of the Claude Code slash command `
 
 Before acting, read the original workflow document:
 
-`{source_rel}`
+`{command.path.resolve().as_posix()}`
+
+Toolkit root: `{repo_root.as_posix()}`. Resolve repository-relative paths below
+against this root, not the current working directory or the installed skill folder.
 
 Also use these files when relevant:
 
@@ -216,6 +231,8 @@ description: {yaml_quote(f"Codex entry skill for `{toolkit_name}`. Use when work
 # Video Toolkit
 
 This skill helps Codex operate inside `{toolkit_name}` without modifying the original Claude-specific resources.
+
+Toolkit root: `{repo_root.as_posix()}`. Resolve all paths below against this root.
 
 ## Source of Truth
 
@@ -273,6 +290,40 @@ def install_copied_skills(
     for skill in skills:
         target = dest_root / skill.name
         copy_tree(skill.path, target, force=force, dry_run=dry_run)
+        if not dry_run:
+            skill_md = target / "SKILL.md"
+            content = skill_md.read_text(encoding="utf-8")
+            # Keep YAML first; put workspace resolution before the original body.
+            frontmatter_end = content.find("\n---", 3)
+            if frontmatter_end < 0:
+                raise SystemExit(f"Invalid frontmatter: {skill_md}")
+            split = frontmatter_end + len("\n---")
+            context = (
+                "\n\n## Codex workspace context\n\n"
+                f"Toolkit root: `{repo_root.as_posix()}`.\n"
+                f"Original skill: `{(skill.path / 'SKILL.md').as_posix()}`.\n"
+                "Resolve repository paths such as `examples/`, `tools/`, and `CLAUDE.md` "
+                "against the toolkit root; sibling skill references resolve against the original skill folder. "
+                "Run toolkit commands with that root as the working directory.\n"
+                "On Windows, translate Bash examples to PowerShell and explicitly use UTF-8 "
+                "for text reads/writes. For Chinese text use a CJK font, such as "
+                "`C:/Windows/Fonts/msyh.ttc`; do not copy macOS font paths.\n"
+                "To use the installed system FFmpeg with MoviePy, set `FFMPEG_BINARY` "
+                "to the full path returned by command discovery before importing MoviePy. "
+                "A passing MoviePy render alone does not prove it used system FFmpeg.\n"
+                "Claude slash commands are workflow documents, not executable Codex commands. "
+                "Browser work must use the browser tools and skills available in the current session.\n"
+            )
+            content = content[:split] + context + content[split:]
+            # Honor name overrides in the actual skill metadata too.
+            lines = content.splitlines()
+            for index, line in enumerate(lines[1:], 1):
+                if line == "---":
+                    break
+                if line.startswith("name:"):
+                    lines[index] = f"name: {yaml_quote(skill.name)}"
+                    break
+            write_text(skill_md, "\n".join(lines) + "\n", dry_run=False)
         installed.append(target)
     return installed
 
@@ -367,7 +418,8 @@ def main() -> int:
     toolkit_name = registry.get("name") or repo_root.name
     commands = load_command_specs(repo_root, registry, mapping)
     skills = load_skill_specs(repo_root, mapping)
-    dest_root = (Path.home() / ".codex" / "skills").expanduser().resolve()
+    codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
+    dest_root = (args.dest_root or (codex_home / "skills")).expanduser().resolve()
 
     if args.force and args.reset:
         raise SystemExit("--force and --reset cannot be used together.")
@@ -385,7 +437,8 @@ def main() -> int:
     if args.dry_run:
         return 0
 
-    sync_agents_file(repo_root=repo_root, force=args.force, dry_run=False)
+    if not args.no_sync_agents:
+        sync_agents_file(repo_root=repo_root, force=args.force, dry_run=False)
     dest_root.mkdir(parents=True, exist_ok=True)
     install_copied_skills(
         repo_root=repo_root,

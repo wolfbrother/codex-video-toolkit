@@ -1,0 +1,36 @@
+{
+  "skip_commands": [
+    "video",
+    "brand",
+    "template",
+    "skills",
+    "record-demo",
+    "generate-voiceover",
+    "contribute",
+    "scene-review",
+    "design",
+    "versions",
+    "redub",
+    "voice-clone",
+    "setup",
+    "thumbnail",
+    "publish"
+  ],
+  "skip_skills": [
+    "acestep",
+    "elevenlabs",
+    "frontend-design",
+    "ideogram4",
+    "ltx2",
+    "playwright-recording",
+    "qwen-edit",
+    "remotion",
+    "remotion-best-practices",
+    "runpod"
+  ],
+  "skill_name_overrides": {
+    "moviepy": "ds-moviepy",
+    "ffmpeg": "ds-ffmpeg"
+  },
+  "command_name_overrides": {}
+}
