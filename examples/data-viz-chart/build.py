@@ -36,9 +36,18 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
+import os
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
+
+# Select the installed system FFmpeg before MoviePy/imageio imports.
+system_ffmpeg = shutil.which("ffmpeg")
+if not system_ffmpeg:
+    raise RuntimeError("System FFmpeg was not found on PATH. Install it or fix PATH.")
+os.environ["FFMPEG_BINARY"] = system_ffmpeg
+os.environ["IMAGEIO_FFMPEG_EXE"] = system_ffmpeg
 
 try:
     import matplotlib

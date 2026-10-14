@@ -5,6 +5,31 @@ description: Python video composition with moviepy 2.x — overlaying determinis
 
 # moviepy for Video Production
 
+## Default FFmpeg: system installation
+
+For every MoviePy script, select the system FFmpeg before the first MoviePy
+import. Do not default to imageio's bundled/downloaded FFmpeg. Add this bootstrap
+to generated scripts (the examples below assume it has already run):
+
+```python
+import os
+import shutil
+
+system_ffmpeg = shutil.which("ffmpeg")
+if not system_ffmpeg:
+    raise RuntimeError("System FFmpeg was not found on PATH. Install it or fix PATH.")
+os.environ["FFMPEG_BINARY"] = system_ffmpeg
+os.environ["IMAGEIO_FFMPEG_EXE"] = system_ffmpeg
+
+from moviepy import VideoFileClip, ImageClip, CompositeVideoClip
+```
+
+Set both variables before importing MoviePy or imageio. This works on Windows,
+macOS and Linux without hardcoding a machine-specific installation path.
+If the user explicitly requests another binary, validate and use that path
+instead. Verify `moviepy.config.FFMPEG_BINARY` against the selected path before
+rendering; a successful render by itself does not establish which binary ran.
+
 moviepy is the toolkit's go-to library for **putting deterministic text on top of AI-generated video** and for building short, single-file Python video projects without a Remotion toolchain.
 
 The deeper principle is **trustworthy text**: any genre where text *has to* be readable, accurate, and consistent (legally, editorially, or commercially) is a genre where AI-rendered in-frame text is unacceptable and a moviepy overlay step is the natural fix. Names must be spelled right. Prices must be exact. Source attributions must be pixel-perfect. AI generation models cannot guarantee any of that.

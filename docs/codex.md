@@ -30,8 +30,11 @@ $env:FFMPEG_BINARY = (Get-Command ffmpeg.exe).Source
 python -X utf8 examples/quick-spot/build.py
 ```
 
-Set `FFMPEG_BINARY` before Python starts: MoviePy can otherwise select the
-imageio-provided binary instead of system FFmpeg. For Chinese overlays select
+The MoviePy Skill and the three reference build scripts now select system FFmpeg
+from PATH before importing MoviePy, setting both `FFMPEG_BINARY` and
+`IMAGEIO_FFMPEG_EXE`. Missing system FFmpeg is reported as an error; there is
+no automatic fallback to an imageio-provided binary. The environment setting
+above is optional for these adapted scripts. For Chinese overlays select
 `C:/Windows/Fonts/msyh.ttc` or another installed CJK font, and read/write text
 files explicitly as UTF-8. Bash commands and macOS font paths in upstream
 guides need conversion on Windows. Browser tasks follow the current Codex
